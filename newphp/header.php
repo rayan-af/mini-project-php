@@ -29,6 +29,9 @@ $role = ucfirst($_SESSION['user_role']);
             <a href="dashboard.php" class="list-group-item list-group-item-action <?php echo ($current_page == 'dashboard.php') ? 'active' : ''; ?>">
                 <i class="fas fa-tachometer-alt me-2"></i>Dashboard
             </a>
+            <a href="pos.php" class="list-group-item list-group-item-action <?php echo ($current_page == 'pos.php') ? 'active' : ''; ?>">
+                <i class="fas fa-cash-register me-2"></i>POS
+            </a>
             <a href="inventory.php" class="list-group-item list-group-item-action <?php echo ($current_page == 'inventory.php') ? 'active' : ''; ?>">
                 <i class="fas fa-boxes me-2"></i>Inventory
             </a>

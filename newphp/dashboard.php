@@ -2,27 +2,29 @@
 require_once 'db.php';
 require_once 'header.php';
 
-// Fetch metrics
+// Fetch metrics (Existing)
 try {
-    // 1. Total active items (count)
     $stmt = $db->query("SELECT COUNT(*) as count FROM inventory");
     $active_items = $stmt->fetch()['count'];
 
-    // 2. Low Stock Items (count < 5)
     $stmt = $db->query("SELECT COUNT(*) as count FROM inventory WHERE quantity < 5");
     $low_stock_count = $stmt->fetch()['count'];
 
-    // 3. Current Inventory Value (sum(quantity * price))
     $stmt = $db->query("SELECT SUM(quantity * price) as val FROM inventory");
     $inventory_val = $stmt->fetch()['val'] ?: 0;
 
-    // 4. Waste Value (sum of items logged as 'waste' - assumes we implement waste tracking later or use logs)
-    // For now, let's mock it or query logs if structure allows.
-    // Let's query logs for action='waste' and join with inventory to get price? 
-    // Simplified: Just count 'waste' entries for now or use 0.
-    // Ideally we'd store the value in logs. Let's assume 0 for start or query logs table.
-    $stmt = $db->query("SELECT COUNT(*) as count FROM logs WHERE action = 'waste'");
+    $stmt = $db->query("SELECT COUNT(*) as count FROM logs WHERE action LIKE 'Waste%'");
     $waste_count = $stmt->fetch()['count'];
+
+    // TRENDING ITEMS (New)
+    // Top 3 items in orders table
+    $stmt = $db->query("SELECT m.name, COUNT(o.id) as order_count 
+                        FROM orders o 
+                        JOIN menu_items m ON o.menu_item_id = m.id 
+                        GROUP BY o.menu_item_id 
+                        ORDER BY order_count DESC 
+                        LIMIT 3");
+    $trending_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (PDOException $e) {
     echo "Error: " . $e->getMessage();
@@ -73,42 +75,63 @@ $role = $_SESSION['user_role'];
     <?php endif; ?>
 </div>
 
-<!-- Recent Low Stock Table -->
-<?php
-$stmt = $db->query("SELECT * FROM inventory WHERE quantity < 5 LIMIT 5");
-$low_stock_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-?>
+<div class="row">
+    <!-- Trending Items Section -->
+    <div class="col-md-6">
+        <div class="card-box h-100">
+            <h5 class="mb-3"><i class="fas fa-fire me-2 text-danger"></i>Trending Items</h5>
+            <?php if (count($trending_items) > 0): ?>
+                <ul class="list-group list-group-flush">
+                    <?php foreach ($trending_items as $index => $item): ?>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-primary rounded-pill me-2">#<?php echo $index + 1; ?></span>
+                            <?php echo htmlspecialchars($item['name']); ?>
+                        </div>
+                        <span class="badge bg-light text-dark border"><?php echo $item['order_count']; ?> orders</span>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php else: ?>
+                <p class="text-muted text-center py-4">No sales data yet.</p>
+            <?php endif; ?>
+        </div>
+    </div>
 
-<div class="card-box">
-    <h5 class="mb-3">Low Stock Warnings</h5>
-    <?php if (count($low_stock_items) > 0): ?>
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Category</th>
-                    <th>Quantity</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($low_stock_items as $item): ?>
-                <tr>
-                    <td><?php echo htmlspecialchars($item['name']); ?></td>
-                    <td><span class="badge bg-secondary"><?php echo htmlspecialchars($item['category']); ?></span></td>
-                    <td class="text-danger fw-bold"><?php echo $item['quantity']; ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    <?php else: ?>
-        <p class="text-muted">No items are currently low on stock.</p>
-    <?php endif; ?>
+    <!-- Low Stock Table (Existing) -->
+    <div class="col-md-6">
+        <div class="card-box h-100">
+            <h5 class="mb-3">Low Stock Warnings</h5>
+            <?php 
+                $stmt = $db->query("SELECT * FROM inventory WHERE quantity < 5 LIMIT 5");
+                $low_stock_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            ?>
+            <?php if (count($low_stock_items) > 0): ?>
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($low_stock_items as $item): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($item['name']); ?></td>
+                            <td class="text-danger fw-bold"><?php echo $item['quantity']; ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else: ?>
+                <p class="text-muted text-center py-4">No items are low on stock.</p>
+            <?php endif; ?>
+        </div>
+    </div>
 </div>
 
 </div> 
-<!-- End Page Content Wrapper from header.php -->
 </div> 
-<!-- End Wrapper from header.php -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="assets/script.js"></script>
